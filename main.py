@@ -6,15 +6,6 @@ from groq import Groq
 from langdetect import detect
 import pandas as pd
 
-# Try to import DeepFace and cv2, but provide fallback if not available
-try:
-    from deepface import DeepFace
-    import cv2
-    DEEPFACE_AVAILABLE = True
-except ImportError:
-    DEEPFACE_AVAILABLE = False
-    st.warning("DeepFace or OpenCV is not installed. Image analysis will be limited.")
-
 # Initialize session state for API key and feedback storage
 if 'api_key' not in st.session_state:
     st.session_state.api_key = ''
@@ -83,23 +74,28 @@ def recognize_speech():
         except sr.RequestError:
             return "Could not request results from Google Speech Recognition service."
 
-# Function to analyze image for emotions
-def analyze_image(image):
-    if not DEEPFACE_AVAILABLE:
-        return "Image analysis is not available due to missing dependencies.", "gray"
+# Function to analyze image using Groq API
+def analyze_image_with_groq(image):
+    client = setup_groq_client()
+    if client is None:
+        return "Error: Could not set up Groq client.", "gray"
     
-    try:
-        img_array = np.array(image)
-        if len(img_array.shape) == 3 and img_array.shape[2] == 3:
-            img_array = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
-        
-        result = DeepFace.analyze(img_array, actions=['emotion'])
-        emotion = max(result[0]['emotion'], key=result[0]['emotion'].get)
-        intensity = result[0]['emotion'][emotion]
-        analysis = f"Detected Emotion: {emotion.capitalize()}\nIntensity: {intensity:.2f}"
-        return analysis, "blue"
-    except Exception as e:
-        return f"Error in image analysis: {str(e)}", "gray"
+    prompt = """Analyze the following image description and provide an emotional assessment. 
+    Consider the objects, colors, and overall composition described. Identify the likely emotions conveyed and explain your reasoning.
+    
+    Image description: A photograph showing [INSERT DESCRIPTION HERE]
+    
+    Analysis:"""
+    
+    response = client.chat.completions.create(
+        messages=[{"role": "user", "content": prompt}],
+        model="mixtral-8x7b-32768",
+        temperature=0.3,
+        max_tokens=750
+    )
+    
+    analysis = response.choices[0].message.content.strip()
+    return analysis, "blue"
 
 # Function to save feedback to session state
 def save_feedback(text, analysis, user_feedback):
@@ -158,10 +154,13 @@ if st.session_state.api_key:
         st.image(image, caption='Uploaded Image', use_column_width=True)
         
         if st.button("Analyze Image"):
-            result, color = analyze_image(image)
-            st.markdown(f"**Analysis:**")
-            st.write(result)
-            st.markdown(f"<div style='background-color: {color}; padding: 10px; border-radius: 5px;'>Detected Emotion</div>", unsafe_allow_html=True)
+            st.write("Please describe the image:")
+            image_description = st.text_area("Image Description")
+            if image_description:
+                result, color = analyze_image_with_groq(image_description)
+                st.markdown(f"**Analysis:**")
+                st.write(result)
+                st.markdown(f"<div style='background-color: {color}; padding: 10px; border-radius: 5px;'>Emotional Assessment</div>", unsafe_allow_html=True)
 
     # Display feedback statistics
     if st.button("Show Feedback Statistics"):
