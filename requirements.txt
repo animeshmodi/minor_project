@@ -9,4 +9,3 @@ pandas
 tensorflow
 opencv-python-headless
 pyaudio
-python-dotenv
