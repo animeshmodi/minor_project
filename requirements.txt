@@ -7,3 +7,6 @@ langdetect
 deepface
 pandas
 opencv-python
+sqlite3
+tensorflow
+pyaudio
