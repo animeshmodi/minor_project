@@ -1,0 +1,11 @@
+streamlit
+groq
+SpeechRecognition
+Pillow
+numpy
+langdetect 
+deepface
+sqlite3
+pandas
+tensorflow
+pyaudio
