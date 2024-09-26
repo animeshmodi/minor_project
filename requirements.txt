@@ -1,8 +1,9 @@
-streamlit==1.32.0
-numpy==1.26.4
-SpeechRecognition==3.10.1
-Pillow==10.2.0
-groq==0.4.1
-langdetect==1.0.9
-pandas==2.2.1
+streamlit
+numpy
+SpeechRecognition
+Pillow
+groq
+langdetect
 deepface
+pandas
+opencv-python
