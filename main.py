@@ -4,9 +4,16 @@ import speech_recognition as sr
 from PIL import Image
 from groq import Groq
 from langdetect import detect
-from deepface import DeepFace
 import pandas as pd
-import cv2
+
+# Try to import DeepFace and cv2, but provide fallback if not available
+try:
+    from deepface import DeepFace
+    import cv2
+    DEEPFACE_AVAILABLE = True
+except ImportError:
+    DEEPFACE_AVAILABLE = False
+    st.warning("DeepFace or OpenCV is not installed. Image analysis will be limited.")
 
 # Initialize session state for API key and feedback storage
 if 'api_key' not in st.session_state:
@@ -27,7 +34,6 @@ def analyze_sentiment_with_groq(text):
     if client is None:
         return "Error: Could not set up Groq client.", "gray"
     
-    # Detect language
     try:
         lang = detect(text)
     except:
@@ -39,24 +45,6 @@ def analyze_sentiment_with_groq(text):
 
     Additionally, identify the primary emotion (e.g., joy, sadness, anger, fear, surprise, disgust) and its intensity on a scale of 1-10.
 
-    Here are some examples in different languages:
-    
-    Text (English): "I just got promoted at work! I can't believe it!"
-    Analysis: This text expresses intense excitement and disbelief about a positive event (a promotion). The use of exclamation marks emphasizes the speaker's enthusiasm.
-    Sentiment: Very Positive
-    Primary Emotion: Joy (Intensity: 9/10)
-
-    Text (Spanish): "Hoy me siento un poco triste, pero sé que mañana será mejor."
-    Analysis: The speaker expresses mild sadness but also shows optimism for the future. This indicates a temporary negative feeling with a positive outlook.
-    Sentiment: Neutral
-    Primary Emotion: Sadness (Intensity: 4/10)
-
-    Text (French): "Je suis tellement déçu par les résultats des élections."
-    Analysis: This statement conveys strong disappointment regarding election results. The use of "tellement" (so much) emphasizes the intensity of the feeling.
-    Sentiment: Negative
-    Primary Emotion: Disappointment (Intensity: 7/10)
-
-    Now, analyze the following text:
     Text ({lang}): "{text}"
     Analysis:"""
 
@@ -95,17 +83,16 @@ def recognize_speech():
         except sr.RequestError:
             return "Could not request results from Google Speech Recognition service."
 
-# Function to analyze image for emotions using DeepFace
+# Function to analyze image for emotions
 def analyze_image(image):
+    if not DEEPFACE_AVAILABLE:
+        return "Image analysis is not available due to missing dependencies.", "gray"
+    
     try:
-        # Convert PIL Image to numpy array
         img_array = np.array(image)
-        
-        # DeepFace expects BGR format, so if the image is RGB, convert it
         if len(img_array.shape) == 3 and img_array.shape[2] == 3:
             img_array = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
         
-        # Perform the analysis
         result = DeepFace.analyze(img_array, actions=['emotion'])
         emotion = max(result[0]['emotion'], key=result[0]['emotion'].get)
         intensity = result[0]['emotion'][emotion]
