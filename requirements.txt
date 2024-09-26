@@ -5,5 +5,3 @@ Pillow==10.2.0
 groq==0.4.1
 langdetect==1.0.9
 pandas==2.2.1
-deepface==0.0.87
-opencv-python-headless==4.9.0.80
