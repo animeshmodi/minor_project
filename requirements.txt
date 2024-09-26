@@ -8,4 +8,4 @@ deepface
 pandas
 tensorflow
 opencv-python-headless
-pyaudio
+pyttsx3
