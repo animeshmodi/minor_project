@@ -3,8 +3,6 @@ import os
 import numpy as np
 import speech_recognition as sr
 from PIL import Image
-from dotenv import load_dotenv
-from groq import Groq
 from langdetect import detect
 from deepface import DeepFace
 import pandas as pd
@@ -12,24 +10,22 @@ import tensorflow as tf
 from tensorflow import keras
 import cv2
 
-# Load environment variables from .env file
-load_dotenv()
-
-# Initialize session state for feedback storage
+# Initialize session state for feedback storage and API key
 if 'feedback_data' not in st.session_state:
     st.session_state.feedback_data = []
+if 'groq_api_key' not in st.session_state:
+    st.session_state.groq_api_key = None
 
 # Set up the Groq API client
-def setup_groq_client():
-    api_key = os.getenv("GROQ_API_KEY")
+def setup_groq_client(api_key):
     if not api_key:
-        st.error("Please set your GROQ_API_KEY in the .env file.")
+        st.error("Please provide your GROQ API key.")
         return None
     return Groq(api_key=api_key)
 
 # Function to analyze sentiment using Groq API with advanced prompt and multi-lingual support
 def analyze_sentiment_with_groq(text):
-    client = setup_groq_client()
+    client = setup_groq_client(st.session_state.groq_api_key)
     if client is None:
         return "Error: Could not set up Groq client.", "gray"
     
@@ -130,6 +126,11 @@ def save_feedback(text, analysis, user_feedback):
 
 # Streamlit UI setup
 st.title("Advanced Multi-modal Sentiment Analysis Web App")
+
+# API key input section
+api_key = st.text_input("Enter GROQ API Key", type="password")
+if api_key:
+    st.session_state.groq_api_key = api_key
 
 # Text input section
 text_input = st.text_area("Enter Text (Any Language):")
