@@ -1,31 +1,29 @@
 import streamlit as st
-import os
 import numpy as np
 import speech_recognition as sr
 from PIL import Image
+from groq import Groq
 from langdetect import detect
 from deepface import DeepFace
 import pandas as pd
-import tensorflow as tf
-from tensorflow import keras
 import cv2
 
-# Initialize session state for feedback storage and API key
+# Initialize session state for API key and feedback storage
+if 'api_key' not in st.session_state:
+    st.session_state.api_key = ''
 if 'feedback_data' not in st.session_state:
     st.session_state.feedback_data = []
-if 'groq_api_key' not in st.session_state:
-    st.session_state.groq_api_key = None
 
 # Set up the Groq API client
-def setup_groq_client(api_key):
-    if not api_key:
-        st.error("Please provide your GROQ API key.")
+def setup_groq_client():
+    if not st.session_state.api_key:
+        st.error("Please enter your GROQ API Key in the sidebar.")
         return None
-    return Groq(api_key=api_key)
+    return Groq(api_key=st.session_state.api_key)
 
 # Function to analyze sentiment using Groq API with advanced prompt and multi-lingual support
 def analyze_sentiment_with_groq(text):
-    client = setup_groq_client(st.session_state.groq_api_key)
+    client = setup_groq_client()
     if client is None:
         return "Error: Could not set up Groq client.", "gray"
     
@@ -127,63 +125,68 @@ def save_feedback(text, analysis, user_feedback):
 # Streamlit UI setup
 st.title("Advanced Multi-modal Sentiment Analysis Web App")
 
-# API key input section
-api_key = st.text_input("Enter GROQ API Key", type="password")
+# Sidebar for API key input
+st.sidebar.title("Configuration")
+api_key = st.sidebar.text_input("Enter your GROQ API Key:", type="password")
 if api_key:
-    st.session_state.groq_api_key = api_key
+    st.session_state.api_key = api_key
 
-# Text input section
-text_input = st.text_area("Enter Text (Any Language):")
-if st.button("Analyze Text"):
-    result, color = analyze_sentiment_with_groq(text_input)
-    st.markdown(f"**Analysis:**")
-    st.write(result)
-    st.markdown(f"<div style='background-color: {color}; padding: 10px; border-radius: 5px;'>Overall Sentiment</div>", unsafe_allow_html=True)
-    
-    # Feedback mechanism
-    feedback = st.radio("Was this analysis accurate?", ("Yes", "No"))
-    if st.button("Submit Feedback"):
-        save_feedback(text_input, result, feedback)
-        st.success("Thank you for your feedback!")
-
-# Voice input section
-if st.button("Record Voice"):
-    voice_text = recognize_speech()
-    st.write(f"Recognized Speech: {voice_text}")
-    
-    if voice_text and voice_text != "Could not understand audio.":
-        result, color = analyze_sentiment_with_groq(voice_text)
+# Main content
+if st.session_state.api_key:
+    # Text input section
+    text_input = st.text_area("Enter Text (Any Language):")
+    if st.button("Analyze Text"):
+        result, color = analyze_sentiment_with_groq(text_input)
         st.markdown(f"**Analysis:**")
         st.write(result)
         st.markdown(f"<div style='background-color: {color}; padding: 10px; border-radius: 5px;'>Overall Sentiment</div>", unsafe_allow_html=True)
         
         # Feedback mechanism
-        feedback = st.radio("Was this voice analysis accurate?", ("Yes", "No"))
-        if st.button("Submit Voice Feedback"):
-            save_feedback(voice_text, result, feedback)
+        feedback = st.radio("Was this analysis accurate?", ("Yes", "No"))
+        if st.button("Submit Feedback"):
+            save_feedback(text_input, result, feedback)
             st.success("Thank you for your feedback!")
 
-# Image input section
-uploaded_file = st.file_uploader("Upload an Image", type=["jpg", "png", "jpeg"])
-if uploaded_file is not None:
-    image = Image.open(uploaded_file)
-    st.image(image, caption='Uploaded Image', use_column_width=True)
-    
-    if st.button("Analyze Image"):
-        result, color = analyze_image(image)
-        st.markdown(f"**Analysis:**")
-        st.write(result)
-        st.markdown(f"<div style='background-color: {color}; padding: 10px; border-radius: 5px;'>Detected Emotion</div>", unsafe_allow_html=True)
+    # Voice input section
+    if st.button("Record Voice"):
+        voice_text = recognize_speech()
+        st.write(f"Recognized Speech: {voice_text}")
+        
+        if voice_text and voice_text != "Could not understand audio.":
+            result, color = analyze_sentiment_with_groq(voice_text)
+            st.markdown(f"**Analysis:**")
+            st.write(result)
+            st.markdown(f"<div style='background-color: {color}; padding: 10px; border-radius: 5px;'>Overall Sentiment</div>", unsafe_allow_html=True)
+            
+            # Feedback mechanism
+            feedback = st.radio("Was this voice analysis accurate?", ("Yes", "No"))
+            if st.button("Submit Voice Feedback"):
+                save_feedback(voice_text, result, feedback)
+                st.success("Thank you for your feedback!")
 
-# Display feedback statistics
-if st.button("Show Feedback Statistics"):
-    if st.session_state.feedback_data:
-        df = pd.DataFrame(st.session_state.feedback_data)
+    # Image input section
+    uploaded_file = st.file_uploader("Upload an Image", type=["jpg", "png", "jpeg"])
+    if uploaded_file is not None:
+        image = Image.open(uploaded_file)
+        st.image(image, caption='Uploaded Image', use_column_width=True)
         
-        st.write("Feedback Statistics:")
-        st.write(f"Total feedback entries: {len(df)}")
-        st.write(f"Accuracy rate: {(df['user_feedback'] == 'Yes').mean():.2%}")
-        
-        st.bar_chart(df['user_feedback'].value_counts())
-    else:
-        st.write("No feedback data available yet.")
+        if st.button("Analyze Image"):
+            result, color = analyze_image(image)
+            st.markdown(f"**Analysis:**")
+            st.write(result)
+            st.markdown(f"<div style='background-color: {color}; padding: 10px; border-radius: 5px;'>Detected Emotion</div>", unsafe_allow_html=True)
+
+    # Display feedback statistics
+    if st.button("Show Feedback Statistics"):
+        if st.session_state.feedback_data:
+            df = pd.DataFrame(st.session_state.feedback_data)
+            
+            st.write("Feedback Statistics:")
+            st.write(f"Total feedback entries: {len(df)}")
+            st.write(f"Accuracy rate: {(df['user_feedback'] == 'Yes').mean():.2%}")
+            
+            st.bar_chart(df['user_feedback'].value_counts())
+        else:
+            st.write("No feedback data available yet.")
+else:
+    st.warning("Please enter your GROQ API Key in the sidebar to use the application.")
